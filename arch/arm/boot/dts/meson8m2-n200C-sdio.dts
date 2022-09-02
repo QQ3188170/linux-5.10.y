@@ -18,6 +18,8 @@
 	aliases {
 		ethernet0 = &ethmac;
 		serial0 = &uart_AO;
+		mmc0 = &sdio_sd_card_slot;
+		mmc1 = &sdhc;
 	};
 
 	chosen {
@@ -39,6 +41,16 @@
 			label = "Function";
 			linux,code = <KEY_FN>;
 			press-threshold-microvolt = <10000>;
+		};
+	};
+
+	cvbs-connector {
+		compatible = "composite-video-connector";
+
+		port {
+			cvbs_connector_in: endpoint {
+				remote-endpoint = <&cvbs_vdac_out>;
+			};
 		};
 	};
 
@@ -65,30 +77,35 @@
 		};
 	};
 
-	sdio_pwrseq: sdio-pwrseq {
+	/*sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 
 		pinctrl-0 = <&xtal_32k_out_pins>;
 		pinctrl-names = "default";
 
 		reset-gpios = <&gpio_ao GPIOAO_6 GPIO_ACTIVE_LOW>,
-			      <&gpio GPIOX_11 GPIO_ACTIVE_LOW>; /* TODO: should be enable-gpios with GPIO_ACTIVE_HIGH in the card's node, this is WIFI_DISn */
+			      <&gpio GPIOX_11 GPIO_ACTIVE_LOW>; 
 
 		clocks = <&xtal_32k_out>;
 		clock-names = "ext_clock";
+	};*/
+	
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		
+		reset-gpios = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
 	};
 
 	sound {
 		compatible = "amlogic,gx-sound-card";
-		model = "M8M2-M8S";
-		audio-routing = "I2S Encoder Playback", "I2S FIFO Playback",
-				"SPDIF Encoder Playback", "I2S FIFO Playback",
-				"SPDIF Encoder Playback", "SPDIF FIFO Playback";
+		model = "AKASO-M8S";
 
 		assigned-clocks = <&clkc CLKID_MPLL0>,
-				  <&clkc CLKID_MPLL1>;
-		assigned-clock-rates = <270950400>,
-				       <294912000>;
+				  <&clkc CLKID_MPLL1>,
+				  <&clkc CLKID_MPLL2>;
+		assigned-clock-rates = <294912000>,
+				       <270950400>,
+				       <393216000>;
 
 		dai-link-0 {
 			sound-dai = <&aiu AIU_CPU CPU_I2S_FIFO>;
@@ -104,14 +121,30 @@
 			mclk-fs = <256>;
 
 			codec-0 {
+				sound-dai = <&aiu AIU_HDMI CTRL_I2S>;
+			};
+
+			codec-1 {
 				sound-dai = <&stereo_i2s_codec>;
 			};
 		};
 
 		dai-link-3 {
+			sound-dai = <&aiu AIU_HDMI CTRL_OUT>;
+
+			codec-0 {
+				sound-dai = <&hdmi_tx 0>;
+			};
+		};
+
+		dai-link-4 {
 			sound-dai = <&aiu AIU_CPU CPU_SPDIF_ENCODER>;
 
 			codec-0 {
+				sound-dai = <&hdmi_tx 1>;
+			};
+
+			codec-1 {
 				sound-dai = <&spdif_dit>;
 			};
 		};
@@ -126,16 +159,6 @@
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
 		sound-name-prefix = "DIT";
-	};
-
-	tv-connector {
-		compatible = "composite-video-connector";
-
-		port {
-			cvbs_connector_in: endpoint {
-				remote-endpoint = <&cvbs_vdac_out>;
-			};
-		};
 	};
 
 	vcck: regulator-vcck {
@@ -339,42 +362,49 @@
 	vref-supply = <&vcc_1v8>;
 };
 
+/* emmc */
 &sdhc {
 	status = "okay";
 
-	pinctrl-0 = <&sdxc_b_pins>;
+	pinctrl-0 = <&sdxc_c_pins>;
 	pinctrl-names = "default";
 
-	bus-width = <4>;
-	max-frequency = <50000000>;
+	bus-width = <8>;
+	max-frequency = <100000000>;
 
-	no-sdio;
-	cap-sd-highspeed;
 	disable-wp;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	no-sdio;
 
-	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
+	mmc-pwrseq = <&emmc_pwrseq>;
 
 	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&vcc_1v8>;
+
 };
 
+/* SD card */
+/* wifi */
 &sdio {
 	status = "okay";
 
-	pinctrl-0 = <&sd_a_pins>;
+	pinctrl-0 = <&sd_b_pins>;
 	pinctrl-names = "default";
 
-	sdio_wireless_slot: slot@0 {
+	sdio_sd_card_slot: slot@1 {
 		compatible = "mmc-slot";
-		reg = <0>;
+		reg = <1>;
 
 		bus-width = <4>;
-		cap-mmc-highspeed;
+		max-frequency = <50000000>;
+
+		no-mmc;
+		no-sdio;
 		cap-sd-highspeed;
-		non-removable;
 		disable-wp;
 
-		mmc-pwrseq = <&sdio_pwrseq>;
+		cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
 
 		vmmc-supply = <&vcc_3v3>;
 	};
