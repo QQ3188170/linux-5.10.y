@@ -688,14 +688,14 @@
 			};
 		};
 
-		/*sdxc_b_pins: sdxc-b {
+		sdxc_b_pins: sdxc-b {
 			mux {
 				groups = "sdxc_d0_b", "sdxc_d13_b",
 					 "sdxc_clk_b", "sdxc_cmd_b";
 				function = "sdxc_b";
 				bias-pull-up;
 			};
-		};*/
+		};
 		
 		sdxc_c_pins: sdxc-c {
 			mux {
